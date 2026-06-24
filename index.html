@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>TIH Taxi — คำนวณค่าโดยสาร</title>
+
+<!-- ===== PWA meta ===== -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0E7490">
+<link rel="apple-touch-icon" href="icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TIH Taxi">
+<link rel="icon" type="image/png" href="icon.png">
+
+<style>
+  :root{
+    --brand:#0E7490;
+    --brand-dark:#0B5566;
+    --brand-light:#E0F2F7;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Sarabun",Tahoma,sans-serif;
+    background:linear-gradient(160deg,var(--brand) 0%,var(--brand-dark) 100%);
+    color:#fff;min-height:100dvh;
+    display:flex;align-items:center;justify-content:center;
+    padding:24px;
+    padding-top:calc(24px + env(safe-area-inset-top));
+    padding-bottom:calc(24px + env(safe-area-inset-bottom));
+  }
+  .card{
+    width:100%;max-width:380px;text-align:center;
+  }
+  .logo{
+    width:104px;height:104px;border-radius:26px;margin:0 auto 20px;
+    background:#fff;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 12px 30px rgba(0,0,0,.25);overflow:hidden;
+  }
+  .logo img{width:100%;height:100%;object-fit:cover}
+  .logo .fallback{font-size:46px}
+  h1{font-size:24px;font-weight:700;margin-bottom:6px}
+  .sub{font-size:15px;opacity:.85;margin-bottom:32px;line-height:1.5}
+  .btn{
+    display:block;width:100%;border:none;border-radius:16px;
+    padding:18px;font-size:18px;font-weight:700;cursor:pointer;
+    background:#fff;color:var(--brand-dark);
+    box-shadow:0 8px 20px rgba(0,0,0,.18);
+    transition:transform .08s ease,opacity .2s ease;
+  }
+  .btn:active{transform:scale(.98)}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+  .btn-install{
+    margin-top:14px;background:transparent;color:#fff;
+    border:2px solid rgba(255,255,255,.6);box-shadow:none;
+  }
+  .hint{
+    margin-top:26px;font-size:13.5px;line-height:1.7;opacity:.9;
+    background:rgba(255,255,255,.12);border-radius:14px;padding:16px 18px;
+    text-align:left;
+  }
+  .hint b{color:#fff}
+  .countdown{font-variant-numeric:tabular-nums}
+  .warn{
+    margin-top:18px;background:#7c2d12;border-radius:12px;padding:14px 16px;
+    font-size:14px;line-height:1.6;display:none;text-align:left;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <img src="icon.png" alt="TIH Taxi" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+      <span class="fallback" style="display:none">🚖</span>
+    </div>
+
+    <h1>TIH Taxi</h1>
+    <p class="sub">ระบบคำนวณค่าโดยสาร<br>Thai International Hospital Phangan</p>
+
+    <button id="openBtn" class="btn" disabled>เปิดระบบ <span class="countdown">(4)</span></button>
+    <button id="installBtn" class="btn btn-install" style="display:none">📲 ติดตั้งเป็นแอป</button>
+
+    <div id="hint" class="hint"></div>
+    <div id="lineWarn" class="warn">
+      ⚠️ คุณกำลังเปิดผ่านแอป LINE ซึ่ง<b>ติดตั้งแอปไม่ได้</b><br>
+      แตะ ⋮ (มุมขวาบน) → "เปิดในเบราว์เซอร์" ก่อน แล้วค่อยติดตั้ง
+    </div>
+  </div>
+
+<script>
+  // ===== วาง Web app URL (/exec) ปัจจุบันตรงนี้ =====
+  var APP_URL = "https://script.google.com/macros/s/AKfycbzmkIt6DvcdFzqSdGa-MOXKlhH1eddFooSgtZGgRQhHBSorD1sOgnc4XLJyvqVsDWuk-w/exec";
+  // ==================================================
+
+  var openBtn   = document.getElementById('openBtn');
+  var installBtn= document.getElementById('installBtn');
+  var hintEl    = document.getElementById('hint');
+  var lineWarn  = document.getElementById('lineWarn');
+
+  var ua = navigator.userAgent || '';
+  var isIOS     = /iPhone|iPad|iPod/i.test(ua);
+  var isAndroid = /Android/i.test(ua);
+  var isLine    = /Line/i.test(ua);
+  var isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                   || window.navigator.standalone === true;
+
+  // ----- ปุ่มเปิดระบบ: ดีเลย์ 4 วิ ให้ manifest โหลดทัน (กันไอคอนพังเป็น "G") -----
+  function enableOpen(){
+    openBtn.disabled = false;
+    openBtn.innerHTML = 'เปิดระบบ';
+  }
+  if (isStandalone){
+    enableOpen(); // เปิดจากแอปที่ติดตั้งแล้ว ใช้ได้ทันที
+  } else {
+    var n = 4;
+    var t = setInterval(function(){
+      n--;
+      if (n <= 0){ clearInterval(t); enableOpen(); }
+      else { openBtn.querySelector('.countdown').textContent = '('+n+')'; }
+    }, 1000);
+  }
+  openBtn.addEventListener('click', function(){
+    if (openBtn.disabled) return;
+    window.location.href = APP_URL;   // กดเอง ไม่ auto-redirect
+  });
+
+  // ----- คำแนะนำติดตั้ง ตาม platform -----
+  if (isStandalone){
+    hintEl.innerHTML = '✅ ติดตั้งเรียบร้อยแล้ว แตะ <b>"เปิดระบบ"</b> เพื่อเริ่มใช้งานได้เลย';
+  } else if (isLine){
+    lineWarn.style.display = 'block';
+    hintEl.innerHTML = 'หากต้องการติดตั้งเป็นแอป โปรดเปิดด้วยเบราว์เซอร์ (Chrome / Safari) ก่อน';
+  } else if (isIOS){
+    hintEl.innerHTML = 'ติดตั้งบน iPhone: แตะปุ่ม <b>แชร์</b> ⬆️ ด้านล่าง → เลือก <b>"เพิ่มไปยังหน้าจอเริ่มต้น"</b>';
+  } else if (isAndroid){
+    hintEl.innerHTML = 'ติดตั้งบน Android: รอปุ่ม <b>"ติดตั้งเป็นแอป"</b> ด้านบน หรือแตะเมนู ⋮ → <b>"เพิ่มลงในหน้าจอหลัก"</b>';
+  } else {
+    hintEl.innerHTML = 'เปิดบนคอมพิวเตอร์: แตะ <b>"เปิดระบบ"</b> เพื่อใช้งานในเบราว์เซอร์ได้เลย';
+  }
+
+  // ----- ปุ่มติดตั้ง (Chrome/Android) -----
+  var deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', function(e){
+    e.preventDefault();
+    deferredPrompt = e;
+    installBtn.style.display = 'block';
+  });
+  installBtn.addEventListener('click', function(){
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.finally(function(){
+      deferredPrompt = null;
+      installBtn.style.display = 'none';
+    });
+  });
+  window.addEventListener('appinstalled', function(){
+    installBtn.style.display = 'none';
+    hintEl.innerHTML = '✅ ติดตั้งสำเร็จ! เปิดแอป <b>TIH Taxi</b> จากหน้าจอหลักได้เลย';
+  });
+
+  // ----- ลงทะเบียน service worker (จำเป็นให้ Chrome ขึ้นปุ่มติดตั้ง) -----
+  if ('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  }
+</script>
+</body>
+</html>

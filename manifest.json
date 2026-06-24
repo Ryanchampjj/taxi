@@ -1,0 +1,25 @@
+{
+  "name": "TIH Taxi — คำนวณค่าโดยสาร",
+  "short_name": "TIH Taxi",
+  "description": "ระบบคำนวณค่าโดยสาร TIH Phangan",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0E7490",
+  "theme_color": "#0E7490",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
